@@ -15,30 +15,20 @@ def main(request):
     request_args = request.args
     
     bucket = "spc_financials"
-    name = "SPC_Virgin.csv"
+    name = "SPC_Monzo.csv"
 
-    df_virgin = read_virgin(bucket, name)
+    df_monzo = read_monzo(bucket, name)         #Read monzo file
+    print(df_monzo.head().to_string())
 
-    #buffer = io.StringIO()
-    #df_virgin.info(buf=buffer)
-    #s = buffer.getvalue()
-    #print(s)
-    #print(df_virgin.head().to_string())
-
-    rev_df = revenue(df_virgin)
-    print(rev_df.head().to_string())
-    table_id = 'spc-sandbox-453019.financials.spc-revenue'
-    rev_df.to_gbq(table_id, if_exists='replace')
-
-    cost_df = cost(df_virgin)
+    cost_df = cost(df_monzo)
     print(cost_df.head().to_string())
-    table_id = 'spc-sandbox-453019.financials.spc-cost'
+    table_id = 'spc-sandbox-453019.financials.spc-cost-monzo'
     cost_df.to_gbq(table_id, if_exists='replace')
 
     return 'Hello World!'
 
 
-def read_virgin(bucket_name, source_blob_name):
+def read_monzo(bucket_name, source_blob_name):
     storage_client = storage.Client()
     bucket = storage_client.bucket(bucket_name)
     blob = bucket.blob(source_blob_name)
@@ -58,7 +48,7 @@ def read_virgin(bucket_name, source_blob_name):
 
     new_df = df[['Date', 'Description', 'Category', 'Amount']].copy()
     new_df['Ops_Include'] = True
-    new_df['Type'] = "Revenue"
+    new_df['Type'] = "Transfer"
 
     for index, row in new_df.iterrows():
         amount = new_df.loc[index, 'Amount']
@@ -77,46 +67,24 @@ def read_virgin(bucket_name, source_blob_name):
     new_df['Category'] = 'other'
 
     return new_df
-    
-def revenue (virgin_df):
 
-    rev_df = virgin_df[virgin_df['Type'] == "Revenue"]
-    rev_df = rev_df.reset_index(drop=True)
+def cost(monzo_df):
 
-    client = bigquery.Client()
-    ex_query = """
-    SELECT Substring 
-    FROM `spc-sandbox-453019.financials.config-ops-exclude` 
-    WHERE File = 'virgin' AND Type = 'revenue'
-    """
-    ex_df = client.query(ex_query).to_dataframe()
-
-    rc_query = """
-    SELECT Substring, Category 
-    FROM `spc-sandbox-453019.financials.revenue_categories` 
-    WHERE File = 'virgin'
-    """
-    rc_df = client.query(rc_query).to_dataframe()
-
-    return updateci(rc_df, ex_df, rev_df)
-
-def cost(virgin_df):
-
-    cost_df = virgin_df[virgin_df['Type'] == "Cost"]
+    cost_df = monzo_df[monzo_df['Type'] == "Cost"]
     cost_df = cost_df.reset_index(drop=True)
 
     client = bigquery.Client()
     ex_query = """
     SELECT Substring 
     FROM `spc-sandbox-453019.financials.config-ops-exclude` 
-    WHERE File = 'virgin' AND Type = 'cost'
+    WHERE File = 'monzo' AND Type = 'cost'
     """
     ex_df = client.query(ex_query).to_dataframe()
 
     rc_query = """
     SELECT Substring, Category 
     FROM `spc-sandbox-453019.financials.config-cost-categories`
-    WHERE File = 'virgin'"""
+    WHERE File = 'monzo'"""
     rc_df = client.query(rc_query).to_dataframe()
 
     return updateci(rc_df, ex_df, cost_df)
