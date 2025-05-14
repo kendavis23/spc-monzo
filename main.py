@@ -12,7 +12,7 @@ from updateCI import updateci
 def main(request):
     
     request_json = request.get_json(silent=True)
-    request_args = request.args
+    request_args = request.args 
     
     bucket = "spc_financials"
     name = "SPC_Monzo.csv"
